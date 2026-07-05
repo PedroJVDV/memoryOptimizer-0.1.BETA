@@ -455,18 +455,54 @@ $btnRefresh.Cursor = [System.Windows.Forms.Cursors]::Hand
 $tabLimpeza.Controls.AddRange(@($btnClean, $btnRefresh))
 
 # ================================================================
-# -- SCHEDULING TAB --
+# -- SCHEDULING TAB (Windows Task Scheduler) --
 # ================================================================
 
-# -- Timer object --
-$script:scheduleTimer = New-Object System.Windows.Forms.Timer
+$script:taskName = "MemoryCleanerAutoClean"
+$script:silentScript = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Definition) "LimparSilencioso.ps1"
+$script:logFile = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Definition) "cleaner_log.txt"
 $script:scheduleRunning = $false
-$script:scheduleCount = 0
 $script:nextRunTime = $null
+$script:lastLogWriteTime = if (Test-Path $script:logFile) { (Get-Item $script:logFile).LastWriteTime } else { $null }
+$script:lastLogLinesCount = if (Test-Path $script:logFile) { @(Get-Content $script:logFile -ErrorAction SilentlyContinue).Count } else { 0 }
 
-# -- Countdown timer (updates every second) --
+
+# -- Countdown timer (updates every second for visual feedback) --
 $script:countdownTimer = New-Object System.Windows.Forms.Timer
 $script:countdownTimer.Interval = 1000
+
+# -- Helper: Check if task exists --
+function Get-CleanerTask {
+    try {
+        $task = Get-ScheduledTask -TaskName $script:taskName -ErrorAction SilentlyContinue
+        return $task
+    } catch {
+        return $null
+    }
+}
+
+# -- Helper: Get execution count from log --
+function Get-ExecCount {
+    if (Test-Path $script:logFile) {
+        $lines = Select-String -Path $script:logFile -Pattern "Limpeza automatica iniciada" -ErrorAction SilentlyContinue
+        if ($lines) { return $lines.Count }
+    }
+    return 0
+}
+
+# -- Helper: Get last run time from log --
+function Get-LastRunTime {
+    if (Test-Path $script:logFile) {
+        $lines = Select-String -Path $script:logFile -Pattern "Limpeza concluida" -ErrorAction SilentlyContinue
+        if ($lines -and $lines.Count -gt 0) {
+            $lastLine = $lines[-1].Line
+            if ($lastLine -match '\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]') {
+                return $matches[1]
+            }
+        }
+    }
+    return $null
+}
 
 # -- Schedule Header --
 $schedHeaderPanel = New-Object System.Windows.Forms.Panel
@@ -483,7 +519,7 @@ $schedHeaderLabel.AutoSize = $true
 $schedHeaderPanel.Controls.Add($schedHeaderLabel)
 
 $schedSubLabel = New-Object System.Windows.Forms.Label
-$schedSubLabel.Text = "Configure a limpeza periodica de memoria"
+$schedSubLabel.Text = "A limpeza continua rodando mesmo com o programa fechado"
 $schedSubLabel.Font = $fontSmall
 $schedSubLabel.ForeColor = $textSecondary
 $schedSubLabel.Location = New-Object System.Drawing.Point(18, 38)
@@ -661,6 +697,50 @@ function Write-ScheduleLog {
     [System.Windows.Forms.Application]::DoEvents()
 }
 
+# -- Check for existing task on startup --
+$existingTask = Get-CleanerTask
+if ($existingTask -and $existingTask.State -ne 'Disabled') {
+    $script:scheduleRunning = $true
+
+    # Extract interval from task trigger
+    $trigger = $existingTask.Triggers[0]
+    $repInterval = $trigger.Repetition.Interval
+    $taskMinutes = 15
+    if ($repInterval -match 'PT(\d+)M') { $taskMinutes = [int]$matches[1] }
+    elseif ($repInterval -match 'PT(\d+)H') { $taskMinutes = [int]$matches[1] * 60 }
+
+    $intervalInput.Value = $taskMinutes
+    $intervalInput.Enabled = $false
+
+    $statusIndicator.Text = "ATIVO"
+    $statusIndicator.ForeColor = $accentGreen
+    $intervalShowLabel.Text = "Intervalo: $taskMinutes min"
+
+    $execCount = Get-ExecCount
+    $execCountLabel.Text = "Execucoes realizadas: $execCount"
+
+    $lastRun = Get-LastRunTime
+    if ($lastRun) { $lastRunLabel.Text = "Ultima limpeza: $lastRun" }
+
+    $script:nextRunTime = (Get-Date).AddMinutes($taskMinutes)
+    if ($existingTask.LastRunTime -and $existingTask.LastRunTime -gt (Get-Date).AddDays(-1)) {
+        $script:nextRunTime = $existingTask.LastRunTime.AddMinutes($taskMinutes)
+        if ($script:nextRunTime -lt (Get-Date)) {
+            $script:nextRunTime = (Get-Date).AddMinutes(1)
+        }
+    }
+    $countdownLabel.ForeColor = $accentBlue
+    $script:countdownTimer.Start()
+
+    $btnSchedule.Text = "PARAR AGENDAMENTO"
+    $btnSchedule.BackColor = $accentRed
+    $btnSchedule.ForeColor = [System.Drawing.Color]::White
+
+    Write-ScheduleLog "Tarefa agendada detectada: limpeza a cada $taskMinutes min"
+    Write-ScheduleLog "A limpeza continua rodando mesmo com o programa fechado."
+    if ($lastRun) { Write-ScheduleLog "Ultima execucao registrada: $lastRun" }
+}
+
 # -- Update Memory Display --
 function Update-MemoryDisplay {
     $mem = Get-MemoryInfo
@@ -824,75 +904,127 @@ $btnClean.Add_Click({
     $btnClean.BackColor = $accentBlue
 })
 
-# -- Schedule Timer Tick --
-$script:scheduleTimer.Add_Tick({
-    $script:scheduleCount++
-    $execCountLabel.Text = "Execucoes realizadas: $($script:scheduleCount)"
-    Write-ScheduleLog "--- Execucao automatica #$($script:scheduleCount) ---"
-
-    Invoke-MemoryClean -LogFunc { param($msg) Write-ScheduleLog $msg } -StopServices $false
-
-    $lastRunLabel.Text = "Ultima limpeza: $(Get-Date -Format 'HH:mm:ss')"
-    $script:nextRunTime = (Get-Date).AddMinutes($intervalInput.Value)
-    Write-ScheduleLog "Proxima execucao em $($intervalInput.Value) min ($(Get-Date $script:nextRunTime -Format 'HH:mm:ss'))"
-})
-
-# -- Countdown Timer Tick --
+# -- Countdown Timer Tick (visual feedback and log sync) --
 $script:countdownTimer.Add_Tick({
-    if ($script:nextRunTime -ne $null) {
+    # 1. Sync logs from background task
+    if (Test-Path $script:logFile) {
+        $currentWriteTime = (Get-Item $script:logFile).LastWriteTime
+        if ($script:lastLogWriteTime -eq $null -or $currentWriteTime -gt $script:lastLogWriteTime) {
+            $allLines = @(Get-Content $script:logFile -ErrorAction SilentlyContinue)
+            if ($allLines.Count -gt 0) {
+                if ($allLines.Count -lt $script:lastLogLinesCount) { $script:lastLogLinesCount = 0 }
+                if ($allLines.Count -gt $script:lastLogLinesCount) {
+                    $newLines = $allLines[$script:lastLogLinesCount..($allLines.Count - 1)]
+                    foreach ($line in $newLines) {
+                        $schedLogBox.AppendText("$line`r`n")
+                    }
+                    $schedLogBox.SelectionStart = $schedLogBox.Text.Length
+                    $schedLogBox.ScrollToCaret()
+                    Update-MemoryDisplay
+                }
+                $script:lastLogLinesCount = $allLines.Count
+            }
+            $script:lastLogWriteTime = $currentWriteTime
+        }
+    }
+
+    # 2. Update countdown visuals
+    if ($script:nextRunTime -ne $null -and $script:scheduleRunning) {
         $remaining = $script:nextRunTime - (Get-Date)
         if ($remaining.TotalSeconds -gt 0) {
             $countdownLabel.Text = "Proxima limpeza: $($remaining.ToString('hh\:mm\:ss'))"
         } else {
+            # Reset countdown for next cycle
+            $mins = [int]$intervalInput.Value
+            $script:nextRunTime = (Get-Date).AddMinutes($mins)
             $countdownLabel.Text = "Proxima limpeza: executando..."
+
+            # Update exec count from log
+            $execCount = Get-ExecCount
+            $execCountLabel.Text = "Execucoes realizadas: $execCount"
+            $lastRun = Get-LastRunTime
+            if ($lastRun) { $lastRunLabel.Text = "Ultima limpeza: $lastRun" }
         }
     }
 })
 
-# -- Schedule Button Click --
+# -- Schedule Button Click (Windows Task Scheduler) --
 $btnSchedule.Add_Click({
     if (-not $script:scheduleRunning) {
-        # START scheduling
+        # START: Register Windows Scheduled Task
         $minutes = [int]$intervalInput.Value
-        $script:scheduleTimer.Interval = $minutes * 60 * 1000
-        $script:scheduleTimer.Start()
-        $script:countdownTimer.Start()
-        $script:scheduleRunning = $true
-        $script:scheduleCount = 0
-        $script:nextRunTime = (Get-Date).AddMinutes($minutes)
 
-        $statusIndicator.Text = "ATIVO"
-        $statusIndicator.ForeColor = $accentGreen
-        $countdownLabel.ForeColor = $accentBlue
-        $execCountLabel.Text = "Execucoes realizadas: 0"
-        $intervalShowLabel.Text = "Intervalo: $minutes min"
-        $lastRunLabel.Text = "Ultima limpeza: --"
+        try {
+            # Remove existing task if any
+            Unregister-ScheduledTask -TaskName $script:taskName -Confirm:$false -ErrorAction SilentlyContinue
 
-        $btnSchedule.Text = "PARAR AGENDAMENTO"
-        $btnSchedule.BackColor = $accentRed
-        $btnSchedule.ForeColor = [System.Drawing.Color]::White
-        $intervalInput.Enabled = $false
+            # Clear previous log
+            if (Test-Path $script:logFile) { Remove-Item $script:logFile -Force -ErrorAction SilentlyContinue }
 
-        Write-ScheduleLog "Agendamento INICIADO: limpeza a cada $minutes minutos"
-        Write-ScheduleLog "Proxima execucao: $(Get-Date $script:nextRunTime -Format 'HH:mm:ss')"
+            # Create task action
+            $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$($script:silentScript)`"" -WorkingDirectory (Split-Path -Parent $script:silentScript)
+
+            # Create trigger with repetition
+            $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes $minutes) -RepetitionDuration (New-TimeSpan -Days 10000)
+
+            # Task settings
+            $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+
+            # Create principal (run as current user with highest privileges)
+            $principal = New-ScheduledTaskPrincipal -UserId ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name) -RunLevel Highest -LogonType S4U
+
+            # Register the task
+            Register-ScheduledTask -TaskName $script:taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "MemoryCleaner - Limpeza automatica de memoria a cada $minutes minutos" -Force | Out-Null
+
+            $script:scheduleRunning = $true
+            $script:nextRunTime = (Get-Date).AddMinutes($minutes)
+            $script:countdownTimer.Start()
+
+            $statusIndicator.Text = "ATIVO"
+            $statusIndicator.ForeColor = $accentGreen
+            $countdownLabel.ForeColor = $accentBlue
+            $execCountLabel.Text = "Execucoes realizadas: 0"
+            $intervalShowLabel.Text = "Intervalo: $minutes min"
+            $lastRunLabel.Text = "Ultima limpeza: --"
+
+            $btnSchedule.Text = "PARAR AGENDAMENTO"
+            $btnSchedule.BackColor = $accentRed
+            $btnSchedule.ForeColor = [System.Drawing.Color]::White
+            $intervalInput.Enabled = $false
+
+            Write-ScheduleLog "Tarefa registrada no Agendador do Windows!"
+            Write-ScheduleLog "Limpeza a cada $minutes minutos (mesmo com o programa fechado)"
+            Write-ScheduleLog "Proxima execucao: $(Get-Date $script:nextRunTime -Format 'HH:mm:ss')"
+            Write-ScheduleLog "Nome da tarefa: $($script:taskName)"
+        } catch {
+            Write-ScheduleLog "[ERRO] Falha ao criar tarefa agendada: $_"
+            [System.Windows.Forms.MessageBox]::Show("Erro ao criar tarefa agendada:`n$_", "MemoryCleaner - Erro", "OK", "Error")
+        }
     } else {
-        # STOP scheduling
-        $script:scheduleTimer.Stop()
-        $script:countdownTimer.Stop()
-        $script:scheduleRunning = $false
-        $script:nextRunTime = $null
+        # STOP: Unregister Windows Scheduled Task
+        try {
+            Unregister-ScheduledTask -TaskName $script:taskName -Confirm:$false -ErrorAction Stop
 
-        $statusIndicator.Text = "INATIVO"
-        $statusIndicator.ForeColor = $textSecondary
-        $countdownLabel.Text = "Proxima limpeza: --:--:--"
-        $countdownLabel.ForeColor = $textSecondary
+            $script:countdownTimer.Stop()
+            $script:scheduleRunning = $false
+            $script:nextRunTime = $null
 
-        $btnSchedule.Text = "INICIAR AGENDAMENTO"
-        $btnSchedule.BackColor = $accentGreen
-        $btnSchedule.ForeColor = [System.Drawing.Color]::FromArgb(20, 20, 30)
-        $intervalInput.Enabled = $true
+            $statusIndicator.Text = "INATIVO"
+            $statusIndicator.ForeColor = $textSecondary
+            $countdownLabel.Text = "Proxima limpeza: --:--:--"
+            $countdownLabel.ForeColor = $textSecondary
 
-        Write-ScheduleLog "Agendamento PARADO. Total de execucoes: $($script:scheduleCount)"
+            $btnSchedule.Text = "INICIAR AGENDAMENTO"
+            $btnSchedule.BackColor = $accentGreen
+            $btnSchedule.ForeColor = [System.Drawing.Color]::FromArgb(20, 20, 30)
+            $intervalInput.Enabled = $true
+
+            $execCount = Get-ExecCount
+            Write-ScheduleLog "Tarefa removida do Agendador do Windows."
+            Write-ScheduleLog "Total de execucoes registradas: $execCount"
+        } catch {
+            Write-ScheduleLog "[ERRO] Falha ao remover tarefa: $_"
+        }
     }
 })
 
@@ -919,8 +1051,9 @@ $btnSchedule.Add_MouseLeave({
 
 # -- Cleanup on form close --
 $form.Add_FormClosing({
-    if ($script:scheduleTimer) { $script:scheduleTimer.Stop(); $script:scheduleTimer.Dispose() }
     if ($script:countdownTimer) { $script:countdownTimer.Stop(); $script:countdownTimer.Dispose() }
+    # NOTA: A tarefa agendada no Windows Task Scheduler NAO e removida ao fechar.
+    # Ela continua rodando em segundo plano. Para parar, use o botao PARAR AGENDAMENTO.
 })
 
 # -- Show Form --
