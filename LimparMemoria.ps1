@@ -229,7 +229,7 @@ function Get-UnnecessaryServices {
 # -- Main Form --
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "MemoryCleaner - Otimizador de Memoria"
-$form.Size = New-Object System.Drawing.Size(820, 720)
+$form.Size = New-Object System.Drawing.Size(820, 800)
 $form.StartPosition = "CenterScreen"
 $form.BackColor = $bgDark
 $form.ForeColor = $textPrimary
@@ -260,6 +260,32 @@ $subtitleLabel.AutoSize = $true
 $titlePanel.Controls.Add($subtitleLabel)
 
 $form.Controls.Add($titlePanel)
+
+# -- TabControl --
+$tabControl = New-Object System.Windows.Forms.TabControl
+$tabControl.Location = New-Object System.Drawing.Point(0, 70)
+$tabControl.Size = New-Object System.Drawing.Size(804, 690)
+$tabControl.Font = $fontNormal
+$tabControl.BackColor = $bgDark
+$tabControl.Appearance = "FlatButtons"
+$tabControl.ItemSize = New-Object System.Drawing.Size(200, 36)
+$tabControl.SizeMode = "Fixed"
+
+$tabLimpeza = New-Object System.Windows.Forms.TabPage
+$tabLimpeza.Text = "Limpeza"
+$tabLimpeza.BackColor = $bgDark
+$tabLimpeza.ForeColor = $textPrimary
+$tabLimpeza.Padding = New-Object System.Windows.Forms.Padding(0)
+
+$tabAgendamento = New-Object System.Windows.Forms.TabPage
+$tabAgendamento.Text = "Agendamento"
+$tabAgendamento.BackColor = $bgDark
+$tabAgendamento.ForeColor = $textPrimary
+$tabAgendamento.Padding = New-Object System.Windows.Forms.Padding(0)
+
+$tabControl.TabPages.Add($tabLimpeza)
+$tabControl.TabPages.Add($tabAgendamento)
+$form.Controls.Add($tabControl)
 
 # -- Memory Stats Cards --
 function New-StatCard {
@@ -301,16 +327,16 @@ function New-StatCard {
 
 $memInfo = Get-MemoryInfo
 
-$cardTotal  = New-StatCard 20 85 "TOTAL" $memInfo.TotalGB $textPrimary
-$cardUsed   = New-StatCard 213 85 "EM USO" $memInfo.UsedGB $accentOrange
-$cardFree   = New-StatCard 406 85 "LIVRE" $memInfo.FreeGB $accentGreen
-$cardCached = New-StatCard 599 85 "CACHE" $memInfo.CachedGB $accentPurple
+$cardTotal  = New-StatCard 20 15 "TOTAL" $memInfo.TotalGB $textPrimary
+$cardUsed   = New-StatCard 213 15 "EM USO" $memInfo.UsedGB $accentOrange
+$cardFree   = New-StatCard 406 15 "LIVRE" $memInfo.FreeGB $accentGreen
+$cardCached = New-StatCard 599 15 "CACHE" $memInfo.CachedGB $accentPurple
 
-$form.Controls.AddRange(@($cardTotal, $cardUsed, $cardFree, $cardCached))
+$tabLimpeza.Controls.AddRange(@($cardTotal, $cardUsed, $cardFree, $cardCached))
 
 # -- Usage Bar --
 $barPanel = New-Object System.Windows.Forms.Panel
-$barPanel.Location = New-Object System.Drawing.Point(20, 200)
+$barPanel.Location = New-Object System.Drawing.Point(20, 130)
 $barPanel.Size = New-Object System.Drawing.Size(762, 40)
 $barPanel.BackColor = $bgCard
 
@@ -333,20 +359,20 @@ $barLabel.AutoSize = $true
 $barPanel.Controls.Add($barLabel)
 $barLabel.BringToFront()
 
-$form.Controls.Add($barPanel)
+$tabLimpeza.Controls.Add($barPanel)
 
 # -- Services Section --
 $svcTitleLabel = New-Object System.Windows.Forms.Label
 $svcTitleLabel.Text = "[+] Servicos Identificados (marque para desativar)"
 $svcTitleLabel.Font = $fontSubtitle
 $svcTitleLabel.ForeColor = $textPrimary
-$svcTitleLabel.Location = New-Object System.Drawing.Point(20, 255)
+$svcTitleLabel.Location = New-Object System.Drawing.Point(20, 185)
 $svcTitleLabel.AutoSize = $true
-$form.Controls.Add($svcTitleLabel)
+$tabLimpeza.Controls.Add($svcTitleLabel)
 
 $svcListView = New-Object System.Windows.Forms.ListView
-$svcListView.Location = New-Object System.Drawing.Point(20, 285)
-$svcListView.Size = New-Object System.Drawing.Size(762, 280)
+$svcListView.Location = New-Object System.Drawing.Point(20, 215)
+$svcListView.Size = New-Object System.Drawing.Size(762, 250)
 $svcListView.View = [System.Windows.Forms.View]::Details
 $svcListView.CheckBoxes = $true
 $svcListView.FullRowSelect = $true
@@ -377,11 +403,11 @@ foreach ($svc in $services) {
     $svcListView.Items.Add($item) | Out-Null
 }
 
-$form.Controls.Add($svcListView)
+$tabLimpeza.Controls.Add($svcListView)
 
 # -- Log TextBox --
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(20, 575)
+$logBox.Location = New-Object System.Drawing.Point(20, 475)
 $logBox.Size = New-Object System.Drawing.Size(540, 95)
 $logBox.Multiline = $true
 $logBox.ScrollBars = "Vertical"
@@ -391,7 +417,7 @@ $logBox.ForeColor = $accentGreen
 $logBox.Font = New-Object System.Drawing.Font("Consolas", 9)
 $logBox.BorderStyle = "None"
 $logBox.Text = "[$(Get-Date -Format 'HH:mm:ss')] Pronto. Clique em LIMPAR para otimizar.`r`n"
-$form.Controls.Add($logBox)
+$tabLimpeza.Controls.Add($logBox)
 
 function Write-Log {
     param([string]$message)
@@ -407,7 +433,7 @@ $btnClean = New-Object System.Windows.Forms.Button
 $btnClean.Text = "LIMPAR MEMORIA"
 $btnClean.Font = $fontMedium
 $btnClean.Size = New-Object System.Drawing.Size(220, 48)
-$btnClean.Location = New-Object System.Drawing.Point(572, 575)
+$btnClean.Location = New-Object System.Drawing.Point(572, 475)
 $btnClean.FlatStyle = "Flat"
 $btnClean.FlatAppearance.BorderSize = 0
 $btnClean.BackColor = $accentBlue
@@ -418,7 +444,7 @@ $btnRefresh = New-Object System.Windows.Forms.Button
 $btnRefresh.Text = "ATUALIZAR"
 $btnRefresh.Font = $fontSmall
 $btnRefresh.Size = New-Object System.Drawing.Size(220, 40)
-$btnRefresh.Location = New-Object System.Drawing.Point(572, 630)
+$btnRefresh.Location = New-Object System.Drawing.Point(572, 530)
 $btnRefresh.FlatStyle = "Flat"
 $btnRefresh.FlatAppearance.BorderSize = 1
 $btnRefresh.FlatAppearance.BorderColor = $borderColor
@@ -426,7 +452,214 @@ $btnRefresh.BackColor = $bgCard
 $btnRefresh.ForeColor = $textPrimary
 $btnRefresh.Cursor = [System.Windows.Forms.Cursors]::Hand
 
-$form.Controls.AddRange(@($btnClean, $btnRefresh))
+$tabLimpeza.Controls.AddRange(@($btnClean, $btnRefresh))
+
+# ================================================================
+# -- SCHEDULING TAB --
+# ================================================================
+
+# -- Timer object --
+$script:scheduleTimer = New-Object System.Windows.Forms.Timer
+$script:scheduleRunning = $false
+$script:scheduleCount = 0
+$script:nextRunTime = $null
+
+# -- Countdown timer (updates every second) --
+$script:countdownTimer = New-Object System.Windows.Forms.Timer
+$script:countdownTimer.Interval = 1000
+
+# -- Schedule Header --
+$schedHeaderPanel = New-Object System.Windows.Forms.Panel
+$schedHeaderPanel.Location = New-Object System.Drawing.Point(20, 15)
+$schedHeaderPanel.Size = New-Object System.Drawing.Size(762, 60)
+$schedHeaderPanel.BackColor = $bgPanel
+
+$schedHeaderLabel = New-Object System.Windows.Forms.Label
+$schedHeaderLabel.Text = "[#] Agendamento de Limpeza Automatica"
+$schedHeaderLabel.Font = $fontTitle
+$schedHeaderLabel.ForeColor = $accentPurple
+$schedHeaderLabel.Location = New-Object System.Drawing.Point(16, 8)
+$schedHeaderLabel.AutoSize = $true
+$schedHeaderPanel.Controls.Add($schedHeaderLabel)
+
+$schedSubLabel = New-Object System.Windows.Forms.Label
+$schedSubLabel.Text = "Configure a limpeza periodica de memoria"
+$schedSubLabel.Font = $fontSmall
+$schedSubLabel.ForeColor = $textSecondary
+$schedSubLabel.Location = New-Object System.Drawing.Point(18, 38)
+$schedSubLabel.AutoSize = $true
+$schedHeaderPanel.Controls.Add($schedSubLabel)
+
+$tabAgendamento.Controls.Add($schedHeaderPanel)
+
+# -- Interval Input Card --
+$intervalCard = New-Object System.Windows.Forms.Panel
+$intervalCard.Location = New-Object System.Drawing.Point(20, 90)
+$intervalCard.Size = New-Object System.Drawing.Size(370, 160)
+$intervalCard.BackColor = $bgCard
+
+$intervalTitle = New-Object System.Windows.Forms.Label
+$intervalTitle.Text = "INTERVALO (MINUTOS)"
+$intervalTitle.Font = $fontSubtitle
+$intervalTitle.ForeColor = $textSecondary
+$intervalTitle.Location = New-Object System.Drawing.Point(16, 14)
+$intervalTitle.AutoSize = $true
+$intervalCard.Controls.Add($intervalTitle)
+
+$intervalInput = New-Object System.Windows.Forms.NumericUpDown
+$intervalInput.Location = New-Object System.Drawing.Point(16, 50)
+$intervalInput.Size = New-Object System.Drawing.Size(338, 40)
+$intervalInput.Font = New-Object System.Drawing.Font("Segoe UI", 24, [System.Drawing.FontStyle]::Bold)
+$intervalInput.Minimum = 1
+$intervalInput.Maximum = 1440
+$intervalInput.Value = 15
+$intervalInput.BackColor = $bgPanel
+$intervalInput.ForeColor = $accentBlue
+$intervalInput.BorderStyle = "None"
+$intervalInput.TextAlign = "Center"
+$intervalCard.Controls.Add($intervalInput)
+
+$intervalHint = New-Object System.Windows.Forms.Label
+$intervalHint.Text = "Min: 1 min  |  Max: 1440 min (24h)  |  Padrao: 15 min"
+$intervalHint.Font = $fontSmall
+$intervalHint.ForeColor = $textSecondary
+$intervalHint.Location = New-Object System.Drawing.Point(16, 120)
+$intervalHint.AutoSize = $true
+$intervalCard.Controls.Add($intervalHint)
+
+# -- Quick Presets --
+$presetTitle = New-Object System.Windows.Forms.Label
+$presetTitle.Text = "Atalhos:"
+$presetTitle.Font = $fontSmall
+$presetTitle.ForeColor = $textSecondary
+$presetTitle.Location = New-Object System.Drawing.Point(16, 140)
+$presetTitle.AutoSize = $true
+$intervalCard.Controls.Add($presetTitle)
+
+$tabAgendamento.Controls.Add($intervalCard)
+
+# -- Preset Buttons --
+$presetPanel = New-Object System.Windows.Forms.Panel
+$presetPanel.Location = New-Object System.Drawing.Point(20, 260)
+$presetPanel.Size = New-Object System.Drawing.Size(370, 45)
+$presetPanel.BackColor = $bgDark
+
+$presetValues = @(5, 15, 30, 60)
+$presetLabels = @("5 min", "15 min", "30 min", "1 hora")
+$presetBtnWidth = 85
+for ($i = 0; $i -lt $presetValues.Count; $i++) {
+    $pb = New-Object System.Windows.Forms.Button
+    $pb.Text = $presetLabels[$i]
+    $pb.Font = $fontSmall
+    $pb.Size = New-Object System.Drawing.Size($presetBtnWidth, 35)
+    $pb.Location = New-Object System.Drawing.Point(($i * ($presetBtnWidth + 8)), 5)
+    $pb.FlatStyle = "Flat"
+    $pb.FlatAppearance.BorderSize = 1
+    $pb.FlatAppearance.BorderColor = $borderColor
+    $pb.BackColor = $bgCard
+    $pb.ForeColor = $textPrimary
+    $pb.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $pb.Tag = $presetValues[$i]
+    $pb.Add_Click({
+        $intervalInput.Value = [int]$this.Tag
+    })
+    $pb.Add_MouseEnter({ $this.BackColor = $bgCardHover })
+    $pb.Add_MouseLeave({ $this.BackColor = $bgCard })
+    $presetPanel.Controls.Add($pb)
+}
+$tabAgendamento.Controls.Add($presetPanel)
+
+# -- Status Card --
+$statusCard = New-Object System.Windows.Forms.Panel
+$statusCard.Location = New-Object System.Drawing.Point(410, 90)
+$statusCard.Size = New-Object System.Drawing.Size(372, 215)
+$statusCard.BackColor = $bgCard
+
+$statusTitle = New-Object System.Windows.Forms.Label
+$statusTitle.Text = "STATUS"
+$statusTitle.Font = $fontSubtitle
+$statusTitle.ForeColor = $textSecondary
+$statusTitle.Location = New-Object System.Drawing.Point(16, 14)
+$statusTitle.AutoSize = $true
+$statusCard.Controls.Add($statusTitle)
+
+$statusIndicator = New-Object System.Windows.Forms.Label
+$statusIndicator.Text = "INATIVO"
+$statusIndicator.Font = New-Object System.Drawing.Font("Segoe UI", 20, [System.Drawing.FontStyle]::Bold)
+$statusIndicator.ForeColor = $textSecondary
+$statusIndicator.Location = New-Object System.Drawing.Point(16, 42)
+$statusIndicator.AutoSize = $true
+$statusCard.Controls.Add($statusIndicator)
+
+$countdownLabel = New-Object System.Windows.Forms.Label
+$countdownLabel.Text = "Proxima limpeza: --:--:--"
+$countdownLabel.Font = $fontNormal
+$countdownLabel.ForeColor = $textSecondary
+$countdownLabel.Location = New-Object System.Drawing.Point(16, 85)
+$countdownLabel.Size = New-Object System.Drawing.Size(340, 25)
+$statusCard.Controls.Add($countdownLabel)
+
+$execCountLabel = New-Object System.Windows.Forms.Label
+$execCountLabel.Text = "Execucoes realizadas: 0"
+$execCountLabel.Font = $fontNormal
+$execCountLabel.ForeColor = $textSecondary
+$execCountLabel.Location = New-Object System.Drawing.Point(16, 115)
+$execCountLabel.Size = New-Object System.Drawing.Size(340, 25)
+$statusCard.Controls.Add($execCountLabel)
+
+$intervalShowLabel = New-Object System.Windows.Forms.Label
+$intervalShowLabel.Text = "Intervalo: -- min"
+$intervalShowLabel.Font = $fontNormal
+$intervalShowLabel.ForeColor = $textSecondary
+$intervalShowLabel.Location = New-Object System.Drawing.Point(16, 145)
+$intervalShowLabel.Size = New-Object System.Drawing.Size(340, 25)
+$statusCard.Controls.Add($intervalShowLabel)
+
+$lastRunLabel = New-Object System.Windows.Forms.Label
+$lastRunLabel.Text = "Ultima limpeza: --"
+$lastRunLabel.Font = $fontNormal
+$lastRunLabel.ForeColor = $textSecondary
+$lastRunLabel.Location = New-Object System.Drawing.Point(16, 175)
+$lastRunLabel.Size = New-Object System.Drawing.Size(340, 25)
+$statusCard.Controls.Add($lastRunLabel)
+
+$tabAgendamento.Controls.Add($statusCard)
+
+# -- Start/Stop Button --
+$btnSchedule = New-Object System.Windows.Forms.Button
+$btnSchedule.Text = "INICIAR AGENDAMENTO"
+$btnSchedule.Font = $fontMedium
+$btnSchedule.Size = New-Object System.Drawing.Size(370, 55)
+$btnSchedule.Location = New-Object System.Drawing.Point(20, 320)
+$btnSchedule.FlatStyle = "Flat"
+$btnSchedule.FlatAppearance.BorderSize = 0
+$btnSchedule.BackColor = $accentGreen
+$btnSchedule.ForeColor = [System.Drawing.Color]::FromArgb(20, 20, 30)
+$btnSchedule.Cursor = [System.Windows.Forms.Cursors]::Hand
+$tabAgendamento.Controls.Add($btnSchedule)
+
+# -- Schedule Log --
+$schedLogBox = New-Object System.Windows.Forms.TextBox
+$schedLogBox.Location = New-Object System.Drawing.Point(20, 390)
+$schedLogBox.Size = New-Object System.Drawing.Size(762, 250)
+$schedLogBox.Multiline = $true
+$schedLogBox.ScrollBars = "Vertical"
+$schedLogBox.ReadOnly = $true
+$schedLogBox.BackColor = $bgPanel
+$schedLogBox.ForeColor = $accentGreen
+$schedLogBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+$schedLogBox.BorderStyle = "None"
+$schedLogBox.Text = "[$(Get-Date -Format 'HH:mm:ss')] Agendamento pronto. Defina o intervalo e clique em INICIAR.`r`n"
+$tabAgendamento.Controls.Add($schedLogBox)
+
+function Write-ScheduleLog {
+    param([string]$message)
+    $timestamp = Get-Date -Format 'HH:mm:ss'
+    $schedLogBox.AppendText("[$timestamp] $message`r`n")
+    $schedLogBox.SelectionStart = $schedLogBox.Text.Length
+    $schedLogBox.ScrollToCaret()
+    [System.Windows.Forms.Application]::DoEvents()
+}
 
 # -- Update Memory Display --
 function Update-MemoryDisplay {
@@ -461,54 +694,54 @@ function Update-MemoryDisplay {
     }
 }
 
-# -- Clean Button Click --
-$btnClean.Add_Click({
-    $btnClean.Enabled = $false
-    $btnClean.Text = "Limpando..."
-    $btnClean.BackColor = $bgCardHover
-    [System.Windows.Forms.Application]::DoEvents()
+# -- Reusable Clean Function --
+function Invoke-MemoryClean {
+    param(
+        [scriptblock]$LogFunc = { param($msg) Write-Log $msg },
+        [bool]$StopServices = $true
+    )
 
     $memBefore = Get-MemoryInfo
 
-    Write-Log "Iniciando otimizacao de memoria..."
+    & $LogFunc "Iniciando otimizacao de memoria..."
 
     # Step 1: Flush working sets
-    Write-Log "Reduzindo working sets dos processos..."
+    & $LogFunc "Reduzindo working sets dos processos..."
     try {
         $count = [MemoryOptimizer]::FlushWorkingSets()
-        Write-Log "  > $count processos otimizados"
+        & $LogFunc "  > $count processos otimizados"
     } catch {
-        Write-Log "  > Erro ao otimizar working sets: $_"
+        & $LogFunc "  > Erro ao otimizar working sets: $_"
     }
 
     # Step 2: Clear standby cache
-    Write-Log "Limpando cache de memoria em espera (Standby)..."
+    & $LogFunc "Limpando cache de memoria em espera (Standby)..."
     try {
         $result = [MemoryOptimizer]::ClearStandbyList()
-        if ($result) { Write-Log "  > Cache Standby limpo com sucesso" }
-        else { Write-Log "  > Aviso: limpeza parcial do cache" }
+        if ($result) { & $LogFunc "  > Cache Standby limpo com sucesso" }
+        else { & $LogFunc "  > Aviso: limpeza parcial do cache" }
     } catch {
-        Write-Log "  > Erro: $_"
+        & $LogFunc "  > Erro: $_"
     }
 
     # Step 3: Clear modified page list
-    Write-Log "Limpando lista de paginas modificadas..."
+    & $LogFunc "Limpando lista de paginas modificadas..."
     try {
         [MemoryOptimizer]::ClearModifiedPageList() | Out-Null
-        Write-Log "  > Paginas modificadas limpas"
+        & $LogFunc "  > Paginas modificadas limpas"
     } catch {
-        Write-Log "  > Erro: $_"
+        & $LogFunc "  > Erro: $_"
     }
 
     # Step 4: .NET Garbage Collection
-    Write-Log "Executando coleta de lixo .NET..."
+    & $LogFunc "Executando coleta de lixo .NET..."
     [System.GC]::Collect()
     [System.GC]::WaitForPendingFinalizers()
     [System.GC]::Collect()
-    Write-Log "  > GC concluido"
+    & $LogFunc "  > GC concluido"
 
     # Step 5: Clear temp files
-    Write-Log "Limpando arquivos temporarios..."
+    & $LogFunc "Limpando arquivos temporarios..."
     $tempPaths = @($env:TEMP, "$env:LOCALAPPDATA\Temp", "$env:WINDIR\Temp")
     $deletedCount = 0
     foreach ($tp in $tempPaths) {
@@ -522,38 +755,40 @@ $btnClean.Add_Click({
             } catch {}
         }
     }
-    Write-Log "  > $deletedCount arquivos temporarios removidos"
+    & $LogFunc "  > $deletedCount arquivos temporarios removidos"
 
     # Step 6: Flush DNS
-    Write-Log "Limpando cache DNS..."
+    & $LogFunc "Limpando cache DNS..."
     try {
         ipconfig /flushdns | Out-Null
-        Write-Log "  > Cache DNS limpo"
+        & $LogFunc "  > Cache DNS limpo"
     } catch {
-        Write-Log "  > Erro ao limpar DNS"
+        & $LogFunc "  > Erro ao limpar DNS"
     }
 
-    # Step 7: Stop selected services
-    $checkedItems = @()
-    foreach ($item in $svcListView.Items) {
-        if ($item.Checked) { $checkedItems += $item }
-    }
+    # Step 7: Stop selected services (only from manual button)
+    if ($StopServices) {
+        $checkedItems = @()
+        foreach ($item in $svcListView.Items) {
+            if ($item.Checked) { $checkedItems += $item }
+        }
 
-    if ($checkedItems.Count -gt 0) {
-        Write-Log "Parando $($checkedItems.Count) servico(s) selecionado(s)..."
-        foreach ($item in $checkedItems) {
-            $svcName = $item.Tag
-            try {
-                $svc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
-                if ($svc -and $svc.Status -eq 'Running') {
-                    Stop-Service -Name $svcName -Force -ErrorAction Stop
-                    Set-Service -Name $svcName -StartupType Manual -ErrorAction SilentlyContinue
-                    Write-Log "  > $svcName parado e definido como Manual"
-                } elseif ($svc) {
-                    Write-Log "  > $svcName ja esta parado"
+        if ($checkedItems.Count -gt 0) {
+            & $LogFunc "Parando $($checkedItems.Count) servico(s) selecionado(s)..."
+            foreach ($item in $checkedItems) {
+                $svcName = $item.Tag
+                try {
+                    $svc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
+                    if ($svc -and $svc.Status -eq 'Running') {
+                        Stop-Service -Name $svcName -Force -ErrorAction Stop
+                        Set-Service -Name $svcName -StartupType Manual -ErrorAction SilentlyContinue
+                        & $LogFunc "  > $svcName parado e definido como Manual"
+                    } elseif ($svc) {
+                        & $LogFunc "  > $svcName ja esta parado"
+                    }
+                } catch {
+                    & $LogFunc "  > Erro ao parar $svcName : $_"
                 }
-            } catch {
-                Write-Log "  > Erro ao parar $svcName : $_"
             }
         }
     }
@@ -563,19 +798,102 @@ $btnClean.Add_Click({
     $memAfter = Get-MemoryInfo
     $freedMB = [math]::Round(($memAfter.FreeGB - $memBefore.FreeGB) * 1024, 0)
 
-    Write-Log "======================================="
+    & $LogFunc "======================================="
     if ($freedMB -gt 0) {
-        Write-Log "[OK] Otimizacao concluida! $freedMB MB liberados"
+        & $LogFunc "[OK] Otimizacao concluida! $freedMB MB liberados"
     } else {
-        Write-Log "[OK] Otimizacao concluida! Memoria ja estava otimizada."
+        & $LogFunc "[OK] Otimizacao concluida! Memoria ja estava otimizada."
     }
-    Write-Log "======================================="
+    & $LogFunc "======================================="
 
     Update-MemoryDisplay
+    return $freedMB
+}
+
+# -- Clean Button Click --
+$btnClean.Add_Click({
+    $btnClean.Enabled = $false
+    $btnClean.Text = "Limpando..."
+    $btnClean.BackColor = $bgCardHover
+    [System.Windows.Forms.Application]::DoEvents()
+
+    Invoke-MemoryClean -LogFunc { param($msg) Write-Log $msg } -StopServices $true
 
     $btnClean.Enabled = $true
     $btnClean.Text = "LIMPAR MEMORIA"
     $btnClean.BackColor = $accentBlue
+})
+
+# -- Schedule Timer Tick --
+$script:scheduleTimer.Add_Tick({
+    $script:scheduleCount++
+    $execCountLabel.Text = "Execucoes realizadas: $($script:scheduleCount)"
+    Write-ScheduleLog "--- Execucao automatica #$($script:scheduleCount) ---"
+
+    Invoke-MemoryClean -LogFunc { param($msg) Write-ScheduleLog $msg } -StopServices $false
+
+    $lastRunLabel.Text = "Ultima limpeza: $(Get-Date -Format 'HH:mm:ss')"
+    $script:nextRunTime = (Get-Date).AddMinutes($intervalInput.Value)
+    Write-ScheduleLog "Proxima execucao em $($intervalInput.Value) min ($(Get-Date $script:nextRunTime -Format 'HH:mm:ss'))"
+})
+
+# -- Countdown Timer Tick --
+$script:countdownTimer.Add_Tick({
+    if ($script:nextRunTime -ne $null) {
+        $remaining = $script:nextRunTime - (Get-Date)
+        if ($remaining.TotalSeconds -gt 0) {
+            $countdownLabel.Text = "Proxima limpeza: $($remaining.ToString('hh\:mm\:ss'))"
+        } else {
+            $countdownLabel.Text = "Proxima limpeza: executando..."
+        }
+    }
+})
+
+# -- Schedule Button Click --
+$btnSchedule.Add_Click({
+    if (-not $script:scheduleRunning) {
+        # START scheduling
+        $minutes = [int]$intervalInput.Value
+        $script:scheduleTimer.Interval = $minutes * 60 * 1000
+        $script:scheduleTimer.Start()
+        $script:countdownTimer.Start()
+        $script:scheduleRunning = $true
+        $script:scheduleCount = 0
+        $script:nextRunTime = (Get-Date).AddMinutes($minutes)
+
+        $statusIndicator.Text = "ATIVO"
+        $statusIndicator.ForeColor = $accentGreen
+        $countdownLabel.ForeColor = $accentBlue
+        $execCountLabel.Text = "Execucoes realizadas: 0"
+        $intervalShowLabel.Text = "Intervalo: $minutes min"
+        $lastRunLabel.Text = "Ultima limpeza: --"
+
+        $btnSchedule.Text = "PARAR AGENDAMENTO"
+        $btnSchedule.BackColor = $accentRed
+        $btnSchedule.ForeColor = [System.Drawing.Color]::White
+        $intervalInput.Enabled = $false
+
+        Write-ScheduleLog "Agendamento INICIADO: limpeza a cada $minutes minutos"
+        Write-ScheduleLog "Proxima execucao: $(Get-Date $script:nextRunTime -Format 'HH:mm:ss')"
+    } else {
+        # STOP scheduling
+        $script:scheduleTimer.Stop()
+        $script:countdownTimer.Stop()
+        $script:scheduleRunning = $false
+        $script:nextRunTime = $null
+
+        $statusIndicator.Text = "INATIVO"
+        $statusIndicator.ForeColor = $textSecondary
+        $countdownLabel.Text = "Proxima limpeza: --:--:--"
+        $countdownLabel.ForeColor = $textSecondary
+
+        $btnSchedule.Text = "INICIAR AGENDAMENTO"
+        $btnSchedule.BackColor = $accentGreen
+        $btnSchedule.ForeColor = [System.Drawing.Color]::FromArgb(20, 20, 30)
+        $intervalInput.Enabled = $true
+
+        Write-ScheduleLog "Agendamento PARADO. Total de execucoes: $($script:scheduleCount)"
+    }
 })
 
 # -- Refresh Button Click --
@@ -590,6 +908,20 @@ $btnClean.Add_MouseEnter({ $btnClean.BackColor = $accentPurple })
 $btnClean.Add_MouseLeave({ if ($btnClean.Enabled) { $btnClean.BackColor = $accentBlue } })
 $btnRefresh.Add_MouseEnter({ $btnRefresh.BackColor = $bgCardHover })
 $btnRefresh.Add_MouseLeave({ $btnRefresh.BackColor = $bgCard })
+$btnSchedule.Add_MouseEnter({
+    if ($script:scheduleRunning) { $btnSchedule.BackColor = [System.Drawing.Color]::FromArgb(200, 60, 60) }
+    else { $btnSchedule.BackColor = [System.Drawing.Color]::FromArgb(60, 200, 120) }
+})
+$btnSchedule.Add_MouseLeave({
+    if ($script:scheduleRunning) { $btnSchedule.BackColor = $accentRed }
+    else { $btnSchedule.BackColor = $accentGreen }
+})
+
+# -- Cleanup on form close --
+$form.Add_FormClosing({
+    if ($script:scheduleTimer) { $script:scheduleTimer.Stop(); $script:scheduleTimer.Dispose() }
+    if ($script:countdownTimer) { $script:countdownTimer.Stop(); $script:countdownTimer.Dispose() }
+})
 
 # -- Show Form --
 $form.Add_Shown({ $form.Activate() })
