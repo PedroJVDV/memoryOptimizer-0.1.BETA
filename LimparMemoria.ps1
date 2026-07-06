@@ -2,12 +2,22 @@
 # MemoryCleaner - Otimizador de Memoria para Windows 11
 # ============================================================
 
-# -- Auto-Elevacao: solicitar admin se necessario --
+# -- Resolucao de caminho (compativel com .ps1 e .exe via ps2exe) --
+$script:exePath = $MyInvocation.MyCommand.Definition
+if ([string]::IsNullOrEmpty($script:exePath) -or -not (Test-Path $script:exePath -ErrorAction SilentlyContinue)) {
+    $script:exePath = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+}
+$script:basePath = Split-Path -Parent $script:exePath
+
+# -- Auto-Elevacao: solicitar admin se necessario (fallback para execucao direta como .ps1) --
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     try {
-        $scriptPath = $MyInvocation.MyCommand.Definition
-        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" -Verb RunAs
+        if ($script:exePath -like '*.exe') {
+            Start-Process $script:exePath -Verb RunAs
+        } else {
+            Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$script:exePath`"" -Verb RunAs
+        }
     } catch {
         [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
         [System.Windows.Forms.MessageBox]::Show("Este programa precisa ser executado como Administrador.", "MemoryCleaner - Erro", "OK", "Error")
@@ -459,8 +469,8 @@ $tabLimpeza.Controls.AddRange(@($btnClean, $btnRefresh))
 # ================================================================
 
 $script:taskName = "MemoryCleanerAutoClean"
-$script:silentScript = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Definition) "LimparSilencioso.ps1"
-$script:logFile = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Definition) "cleaner_log.txt"
+$script:silentScript = Join-Path $script:basePath "LimparSilencioso.ps1"
+$script:logFile = Join-Path $script:basePath "cleaner_log.txt"
 $script:scheduleRunning = $false
 $script:nextRunTime = $null
 $script:lastLogWriteTime = if (Test-Path $script:logFile) { (Get-Item $script:logFile).LastWriteTime } else { $null }

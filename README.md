@@ -81,12 +81,14 @@ git clone https://github.com/PedroJVDV/memoryOptimizer-0.1.BETA.git
 
 ### Execucao
 
-1. **Clique duas vezes** em `LimparMemoria.bat`
+1. **Clique duas vezes** em `MemoryCleaner.exe`
 2. **Aceite o UAC** (prompt de permissao de administrador)
 3. A interface grafica abrira mostrando o uso atual de memoria
 4. **(Opcional)** Marque os servicos que deseja desativar na lista
 5. Clique em **LIMPAR MEMORIA**
 6. Acompanhe o progresso no log em tempo real
+
+> **Nota:** Mantenha o arquivo `LimparSilencioso.ps1` na mesma pasta que o `.exe` para que o agendamento automatico funcione.
 
 > **Dica:** Use o botao **ATUALIZAR** para ver os valores de memoria atualizados apos a limpeza.
 
@@ -98,10 +100,31 @@ git clone https://github.com/PedroJVDV/memoryOptimizer-0.1.BETA.git
 
 ```
 MemoryOptimizer/
-|-- LimparMemoria.bat    # Lancador com elevacao de privilegios
-|-- LimparMemoria.ps1    # Script principal (GUI + logica)
-|-- README.md            # Este arquivo
+|-- MemoryCleaner.exe     # Aplicacao principal (GUI) - clique duplo para executar
+|-- LimparSilencioso.ps1  # Script de limpeza silenciosa (usado pelo Agendador de Tarefas)
+|-- Build-Exe.ps1         # Script de build (compila .ps1 em .exe)
+|-- LimparMemoria.ps1     # Codigo-fonte do script principal
+|-- LimparMemoria.bat     # Lancador legado (opcional)
+|-- icon.png              # Icone fonte
+|-- icon.ico              # Icone compilado
+|-- README.md             # Este arquivo
 ```
+
+### Compilando o EXE (Build)
+
+Para recompilar o `.exe` apos alteracoes no codigo-fonte:
+
+```powershell
+# Execute como Administrador
+powershell -ExecutionPolicy Bypass -File Build-Exe.ps1
+```
+
+O script de build automaticamente:
+- Instala o modulo `ps2exe` (se necessario)
+- Converte o icone PNG para ICO
+- Compila `LimparMemoria.ps1` em `MemoryCleaner.exe`
+- Embute metadata (versao, descricao, icone)
+- Configura o manifest para solicitar admin automaticamente
 
 ### Como Funciona
 
@@ -132,25 +155,23 @@ PowerShell Script
 ### Fluxo de Elevacao
 
 ```
-Usuario clica no .bat
+Usuario clica no MemoryCleaner.exe
     |
     v
-Verifica admin? --[NAO]--> Cria VBScript temporario
-    |                           |
-   [SIM]                        v
-    |                    ShellExecute com "runas"
-    v                           |
-Executa PowerShell              v
-com -ExecutionPolicy        Prompt UAC
-Bypass                          |
-    |                           v
-    v                    Re-executa .bat como admin
-Interface abre                  |
-                                v
-                           Executa PowerShell
-                                |
-                                v
-                           Interface abre
+Manifest do EXE solicita admin (UAC)
+    |
+    v
+PS1 embutido executa internamente
+    |
+    v
+Interface WinForms abre
+    |
+    v
+(Agendamento) --> Registra tarefa no Windows Task Scheduler
+                        |
+                        v
+                  Executa LimparSilencioso.ps1 no intervalo definido
+                  (continua rodando mesmo com o programa fechado)
 ```
 
 ### APIs do Windows Utilizadas
