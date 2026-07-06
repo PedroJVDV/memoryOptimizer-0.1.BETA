@@ -1,8 +1,8 @@
 # Logs
 cleaner_log.txt
 
-# Compiled binary (rebuild with Build-Exe.ps1)
-MemoryCleaner.exe
+# Compiled binary
+# MemoryCleaner.exe (Agora versionado conforme pedido)
 
 # Temporary files
 *.tmp
