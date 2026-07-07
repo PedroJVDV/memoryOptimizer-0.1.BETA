@@ -2,7 +2,6 @@
 cleaner_log.txt
 
 # Compiled binary
-# MemoryCleaner.exe (Agora versionado conforme pedido)
-
+# MemoryCleaner.exe
 # Temporary files
 *.tmp
